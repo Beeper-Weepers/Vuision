@@ -9,19 +9,32 @@ The Vuision is comprised of two wooden slabs held together by four supports nail
 # Assembly
 Materials are:
 -Arduino Due 
--3 push buttons (Probably Linear) 
+
+-3 push buttons
+
 -Softpot Membrane Potentiometer 
+
 -Solderless breadboard 
+
 -Wires, capacitors, resistors, etc. [Needs change based off of configuration] 
+
 -Screws and nails [Needs changed based off of configuration] 
+
 -USB powered speaker 
+
 -Sparkfun 3.5mm audio jack breakout 
+
 -Power bank 
+
 -Two woods slabs 
+
 -Four wooden supports
 
 Tools: 
 -Soldering Iron 
+
 -Drill 
+
 -Tape 
+
 -Hot Glue or Gorilla Glue
