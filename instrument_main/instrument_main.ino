@@ -1,15 +1,19 @@
 #include "waveform.h"
 
-#define oneHzSample 4000000/maxSamplesNum  // sample for the 1Hz signal expressed in microseconds 
+#define oneHzSample 1000000/maxSamplesNum  // sample for the 1Hz signal expressed in microseconds 
 
-const int button0 = 2, button1 = 5, button2 = 7; //Button pins
-int rate = 18.35; //Rate at which to add to the i waveform counter; larger is faster, smaller is slower
-int threshold = 45; //Minimal detection range for producing sound
-int lowerBound = 195; //Lowest value the potentiometer can produce while pressed. Input is dragged here during extraction of sample.
+const int button0 = 2, button1 = 3, button2 = 4; //Button pins
+int rate = 36; //Rate at which to add to the i waveform counter; larger is faster, smaller is slower
+int rate2 = rate / 3;
+int threshold = 1; //Minimal detection range for producing sound
+int lowerBound = 10; //Lowest value the potentiometer can produce while pressed. Input is dragged here during extraction of sample.
 
 int buttonsPressed = 0; //Number of buttons being pressed
-float DACoutput; //Final output to the speakers after multiplication
+int DACoutput; //Final output to the speakers after multiplication
+int TEMPoutput; //All additives go here, then they are check against the requirments
 int i = 0;  //Position in the wave
+int i2 = 0; //Envelope position in the wave
+
 int sample; //For frequency modification
 int currentRead; //Holds current analog input
 
@@ -28,7 +32,7 @@ void setup() {
   }
   
   analogWriteResolution(12);  // set the analog output resolution to 12 bit (4096 levels)
-  analogReadResolution(12);   // set the analog input resolution to 12 bit 
+  analogReadResolution(12);   // set the analog input resolution to 12 bit
 }
 
 void loop() {
@@ -43,40 +47,54 @@ void loop() {
   
   //Multiply the waveform
   buttonsPressed = 0; //Reset button counter
-  DACoutput = 0; //Reset audio output
+  TEMPoutput = 0; //Reset multiplication variable
   if (digitalRead(button0) == HIGH) { //Multiply by Sine
-    DACoutput += waveformsTable[0][i];
+    TEMPoutput += waveformsTable[0][i];
     buttonsPressed++;
   }
   if (digitalRead(button1) == HIGH) { //Multiply by Triangle 
-    DACoutput += waveformsTable[1][i];
+    TEMPoutput += waveformsTable[1][i];
     buttonsPressed++;
   }
   if (digitalRead(button2) == HIGH) { //Multiply by Saw
-    DACoutput += waveformsTable[2][i];
+    TEMPoutput += waveformsTable[2][i];
     buttonsPressed++;
   }
-  DACoutput /= max(buttonsPressed,1); //Can't divide by zero, so we just divide by one instead. Gets average of all the waveforms pressed
 
-  //If the pot output is below the threshold, null output
-  if (currentRead<threshold) {
-    DACoutput=0;
+  //If activated
+  if (buttonsPressed>0 && currentRead>threshold) {
+    i+=rate;
+    if (i >= maxSamplesNum) { // Reset the counter to repeat the wave
+      i = 0;
+    }
+
+    //ENVELOPE
+    /*
+    i2+=rate2;
+    if (i2 >= maxSamplesNum) {
+      i2=0;
+    }
+    
+    TEMPoutput += waveformsTable[1][i2];
+    buttonsPressed += 1; */
+    //ENVELOPE END
+    
+    DACoutput = TEMPoutput / buttonsPressed; //Gets average of all the waveforms pressed
+    
+  } else { //If the pot output is below the threshold, null output
+    DACoutput*=0.9;
+    i=0;   
   }
   
   //Debug information
   Serial.print(sample);
   Serial.print(" ");
-  Serial.print(currentRead);
+  Serial.print(currentRead-lowerBound);
   Serial.print(" ");
-  Serial.print(DACoutput);
-  Serial.println(" ");
+  Serial.println(DACoutput);
   
   analogWrite(DAC0, DACoutput);  // write the selected waveform on DAC0
   analogWrite(DAC1, DACoutput);  // write the selected waveform on DAC1
-
-  i+=rate;
-  if(i >= maxSamplesNum)  // Reset the counter to repeat the wave
-    i = 0;
 
   delayMicroseconds(sample);  // Hold the sample value for the sample time
 }
