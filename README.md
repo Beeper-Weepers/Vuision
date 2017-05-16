@@ -32,6 +32,7 @@ Materials are:
 -Four wooden supports
 
 Tools: 
+
 -Soldering Iron 
 
 -Drill 
@@ -39,3 +40,16 @@ Tools:
 -Tape 
 
 -Hot Glue or Gorilla Glue
+
+# Credits
+Designed and implemented by:
+
+Maximo P.
+
+Lukas V.
+
+Alex B.
+
+Ibrahim M.
+
+Special thanks to: The Arduino Forums, 
