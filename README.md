@@ -8,6 +8,7 @@ The Vuision is comprised of two wooden slabs held together by four supports nail
 
 # Assembly
 Materials are:
+
 -Arduino Due 
 
 -3 push buttons
