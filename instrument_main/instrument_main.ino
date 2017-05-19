@@ -1,21 +1,31 @@
+#include <math.h>
+#include <algorithm>
+
 #include "waveform.h"
 
 #define oneHzSample 1000000/maxSamplesNum  // sample for the 1Hz signal expressed in microseconds 
+#define rate 36 //Rate at which to add to the i waveform counter; larger is faster, smaller is slower
+#define rate2 rate/3 //Rate at which to add to the i2 waveform counter; larger is faster, smaller is slower
 
-const int button0 = 2, button1 = 3, button2 = 4; //Button pins
-int rate = 36; //Rate at which to add to the i waveform counter; larger is faster, smaller is slower
-int rate2 = rate / 3;
-int threshold = 1; //Minimal detection range for producing sound
-int lowerBound = 10; //Lowest value the potentiometer can produce while pressed. Input is dragged here during extraction of sample.
+#define threshold 1 //Minimal detection range for producing sound
+#define lowerBound 10 //Lowest value the potentiometer can produce while pressed. Input is dragged here during extraction of sample.
 
-int buttonsPressed = 0; //Number of buttons being pressed
-int DACoutput; //Final output to the speakers after multiplication
-int TEMPoutput; //All additives go here, then they are check against the requirments
-int i = 0;  //Position in the wave
-int i2 = 0; //Envelope position in the wave
+//Defines buttons
+#define button0 2
+#define button1 3
+#define button2 4
 
-int sample; //For frequency modification
-int currentRead; //Holds current analog input
+
+uint8_t buttonsPressed = 0; //Number of buttons being pressed, limit of 255 buttons
+uint16_t DACoutput; //Final output to the speakers after multiplication
+uint16_t TEMPoutput; //All additives go here, then they are check against the requirments
+
+//If our maxSamplesNum is over 120, AKA one period of the waveform contains more than 255 samples, then move to uint16_t
+uint8_t i = 0; //Position in the wave
+uint8_t i2 = 0; //Envelope position in the wave
+
+uint16_t sample; //For frequency modification
+uint16_t currentRead; //Holds current analog input
 
 
 void setup() {
@@ -26,7 +36,7 @@ void setup() {
   pinMode(button2, INPUT);
 
   //Expands the noise table
-  for (int i = 0; i < 120; i++) {
+  for (int e = 0; e < 120; e++) {
    waveformsTable[4][i] = map(waveformsTable[4][i],-127,123,0,1000);
    waveformsTable[4][i] += 3000;
   }
@@ -97,4 +107,8 @@ void loop() {
   analogWrite(DAC1, DACoutput);  // write the selected waveform on DAC1
 
   delayMicroseconds(sample);  // Hold the sample value for the sample time
+}
+
+float retreiveNoteFreq(frequency) {
+  return std::upper_bound(note_map.begin(),note_map.end(), frequency);
 }
