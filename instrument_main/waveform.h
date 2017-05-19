@@ -1,10 +1,23 @@
-#ifndef Waveforms_h
-#define Waveforms_h
+/* 
+ *  Contains Waveform Table and Note Table
+ *  referred to as waveformsTable and note_map
+ *  Intended to be imported into a program
+ *  
+*/
 
-#define maxWaveform 5
+
+#ifndef _Waveforms_h_
+#define _Waveforms_h_
+
+#define maxWaveform 4
 #define maxSamplesNum 120
 
-static int waveformsTable[maxWaveform][maxSamplesNum] = {
+#define maxOctave 8
+#define maxNote 8
+#define mapSize maxNote*maxOctave
+
+//Waveform
+static uint16_t waveformsTable[maxWaveform][maxSamplesNum] = {
   // Sin wave
   {
     0x7ff, 0x86a, 0x8d5, 0x93f, 0x9a9, 0xa11, 0xa78, 0xadd, 0xb40, 0xba1,
@@ -71,9 +84,8 @@ static int waveformsTable[maxWaveform][maxSamplesNum] = {
     0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0,
     0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0
   }
- ,
- 
- //Noise wave
+  ,
+   //Noise wave
  {
   -62,  //0
   -72,  //1
@@ -199,5 +211,26 @@ static int waveformsTable[maxWaveform][maxSamplesNum] = {
 };
 
 
+//Base notemap starting at C(0)
+static float note_map[mapSize] = {
+  0, 0, 0, 0, 0, 0, 0, 0,
+  0, 0, 0, 0, 0, 0, 0, 0,
+  0, 0, 0, 0, 0, 0, 0, 0,
+  0, 0, 0, 0, 0, 0, 0, 0,
+  0, 0, 0, 0, 0, 0, 0, 0,
+  0, 0, 0, 0, 0, 0, 0, 0,
+  0, 0, 0, 0, 0, 0, 0, 0,
+  0, 0, 0, 0, 0, 0, 0, 0
+}
 
-#endif
+
+//amount of octaves to create
+for (uint8_t octaves=0;octaves<maxOctave;octaves++) {
+  //number of notes in an octave
+  for (uint8_t notes=0;notes<maxNote;notes++) {
+    note_map[(octaves*maxNote)+notes] = 16.35 * pow(1.059463094359,(octaves*maxNote)+notes);
+  }
+}
+
+
+#endif 
