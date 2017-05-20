@@ -1,6 +1,4 @@
 #include <math.h>
-#include <algorithm>
-
 #include "waveform.h"
 
 #define oneHzSample 1000000/maxSamplesNum  // sample for the 1Hz signal expressed in microseconds 
@@ -109,6 +107,6 @@ void loop() {
   delayMicroseconds(sample);  // Hold the sample value for the sample time
 }
 
-float retreiveNoteFreq(frequency) {
-  return std::upper_bound(note_map.begin(),note_map.end(), frequency);
+float retreiveNoteFreq(int frequency) {
+  return upper_bound_C(note_map.begin(),note_map.end(), frequency);
 }
