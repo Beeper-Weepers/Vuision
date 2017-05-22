@@ -9,7 +9,7 @@
 #ifndef _Waveforms_h_
 #define _Waveforms_h_
 
-#define maxWaveform 4
+#define maxWaveform 5
 #define maxSamplesNum 120
 
 #define maxOctave 8
@@ -105,25 +105,7 @@ static uint16_t waveformsTable[maxWaveform][maxSamplesNum] = {
 
 
 //Base notemap starting at C(0)
-static float note_map[mapSize] = {
-  0, 0, 0, 0, 0, 0, 0, 0,
-  0, 0, 0, 0, 0, 0, 0, 0,
-  0, 0, 0, 0, 0, 0, 0, 0,
-  0, 0, 0, 0, 0, 0, 0, 0,
-  0, 0, 0, 0, 0, 0, 0, 0,
-  0, 0, 0, 0, 0, 0, 0, 0,
-  0, 0, 0, 0, 0, 0, 0, 0,
-  0, 0, 0, 0, 0, 0, 0, 0
-}
-
-
-//amount of octaves to create
-for (uint8_t octaves=0;octaves<maxOctave;octaves++) {
-  //number of notes in an octave
-  for (uint8_t notes=0;notes<maxNote;notes++) {
-    note_map[(octaves*maxNote)+notes] = 16.35 * pow(1.059463094359,(octaves*maxNote)+notes);
-  }
-}
+static float note_map[mapSize] = {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 };
 
 
 #endif 
