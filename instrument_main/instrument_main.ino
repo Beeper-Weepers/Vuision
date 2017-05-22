@@ -1,18 +1,19 @@
 #include <math.h>
-#include "waveform.h"
+#include "Waveforms.h"
 
-#define oneHzSample 1000000/maxSamplesNum  // sample for the 1Hz signal expressed in microseconds 
 #define rate 36 //Rate at which to add to the i waveform counter; larger is faster, smaller is slower
-#define rate2 rate/3 //Rate at which to add to the i2 waveform counter; larger is faster, smaller is slower
+#define rate2 rate/3 //Rate at which to add to the i2 waveform counter used for envelopes ; larger is faster, smaller is slower
+#define oneHzSample 1000000/maxSamplesNum  // sample for the 1Hz signal expressed in microseconds 
+//#define oneHzSample 1000000/(maxSamplesNum/rate) //Uncomment this line and comment the above line for a more accurate oneHzSample
 
 #define threshold 1 //Minimal detection range for producing sound
-#define lowerBound 10 //Lowest value the potentiometer can produce while pressed. Input is dragged here during extraction of sample.
 
 //Defines buttons
 #define button0 2
 #define button1 3
 #define button2 4
 
+uint32_t sinceLast = 0;
 
 uint8_t buttonsPressed = 0; //Number of buttons being pressed, limit of 255 buttons
 uint16_t DACoutput; //Final output to the speakers after multiplication
@@ -34,33 +35,43 @@ void setup() {
   pinMode(button2, INPUT);
 
   //Expands the noise table
-  for (int e = 0; e < 120; e++) {
-   waveformsTable[4][i] = map(waveformsTable[4][i],-127,123,0,1000);
-   waveformsTable[4][i] += 3000;
+  for (uint8_t e = 0; e < 120; e++) {
+    waveformsTable[4][i] = map(waveformsTable[4][i], -127, 123, 0, 3000);
+    waveformsTable[4][i] += 1000;
   }
-  
+
+  //amount of octaves to create
+  for (uint8_t octaves = 0; octaves < maxOctave; octaves++) {
+    //number of notes in an octave
+    for (uint8_t notes = 0; notes < maxNote; notes++) {
+      note_map[(octaves * maxNote) + notes] = 16.35 * pow(1.059463094359, (octaves * maxNote) + notes);
+    }
+  }
+
   analogWriteResolution(12);  // set the analog output resolution to 12 bit (4096 levels)
   analogReadResolution(12);   // set the analog input resolution to 12 bit
 }
 
 void loop() {
+ //Every 17 milliseconds, aka highest it takes to run the loop, run through the body
+ if (millis()%17==0) {
   // Read the the potentiometer and map the value  between the maximum and the minimum sample available
+  
+  // THE COMMENTS BELOW ARE INACCURATE
   // 1 Hz is the minimum freq for the complete wave
   // 170 Hz is the maximum freq for the complete wave. Measured considering the loop and the analogRead() time
-
   currentRead = analogRead(A0);
-  sample = map(currentRead-lowerBound, 0, 4095, 0, oneHzSample);
   sample = constrain(sample, 0, oneHzSample);
+  sample = map(currentRead, 0, 4095, 0, oneHzSample);
 
-  
   //Multiply the waveform
-  buttonsPressed = 0; //Reset button counter
-  TEMPoutput = 0; //Reset multiplication variable
+  TEMPoutput = 0;
+  buttonsPressed = 0;
   if (digitalRead(button0) == HIGH) { //Multiply by Sine
     TEMPoutput += waveformsTable[0][i];
     buttonsPressed++;
   }
-  if (digitalRead(button1) == HIGH) { //Multiply by Triangle 
+  if (digitalRead(button1) == HIGH) { //Multiply by Triangle
     TEMPoutput += waveformsTable[1][i];
     buttonsPressed++;
   }
@@ -70,43 +81,55 @@ void loop() {
   }
 
   //If activated
-  if (buttonsPressed>0 && currentRead>threshold) {
-    i+=rate;
+  if (buttonsPressed > 0 && currentRead > threshold) {
+    i += rate;
     if (i >= maxSamplesNum) { // Reset the counter to repeat the wave
       i = 0;
     }
 
     //ENVELOPE
     /*
-    i2+=rate2;
-    if (i2 >= maxSamplesNum) {
+      i2+=rate2;
+      if (i2 >= maxSamplesNum) {
       i2=0;
-    }
-    
-    TEMPoutput += waveformsTable[1][i2];
-    buttonsPressed += 1; */
+      }
+
+      TEMPoutput += waveformsTable[1][i2];
+      buttonsPressed += 1; */
     //ENVELOPE END
-    
+
     DACoutput = TEMPoutput / buttonsPressed; //Gets average of all the waveforms pressed
-    
+
   } else { //If the pot output is below the threshold, null output
-    DACoutput*=0.9;
-    i=0;   
+    DACoutput *= 0.9;
+    i = 0;
   }
-  
+
+
+
   //Debug information
   Serial.print(sample);
   Serial.print(" ");
-  Serial.print(currentRead-lowerBound);
+  Serial.print(currentRead);
   Serial.print(" ");
-  Serial.println(DACoutput);
-  
+  Serial.print(DACoutput);
+  Serial.print(" ");
+  Serial.println(millis() - sinceLast);
+
+  sinceLast = millis();
+
   analogWrite(DAC0, DACoutput);  // write the selected waveform on DAC0
   analogWrite(DAC1, DACoutput);  // write the selected waveform on DAC1
 
   delayMicroseconds(sample);  // Hold the sample value for the sample time
+ }
 }
 
-float retreiveNoteFreq(int frequency) {
-  return upper_bound_C(note_map.begin(),note_map.end(), frequency);
+float retreiveNoteFreq(int freq) {
+  //Works similarly to upper_bound in C++, basically returns lowest note next to frequency
+  for (uint8_t a = 0; a < mapSize; a++) {
+    if (note_map[a] < freq) {
+      return note_map[a];
+    }
+  }
 }
