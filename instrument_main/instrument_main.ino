@@ -1,12 +1,12 @@
 #include <math.h>
-#include "Waveforms.h"
+#include "waveform.h"
 
 #define rate 36 //Rate at which to add to the i waveform counter; larger is faster, smaller is slower
-#define rate2 rate/3 //Rate at which to add to the i2 waveform counter used for envelopes ; larger is faster, smaller is slower
-#define oneHzSample 1000000/maxSamplesNum  // sample for the 1Hz signal expressed in microseconds 
-//#define oneHzSample 1000000/(maxSamplesNum/rate) //Uncomment this line and comment the above line for a more accurate oneHzSample
+#define rate2 1 //Rate at which to add to the i2 waveform counter used for envelopes ; larger is faster, smaller is slower
+//#define oneHzSample 1000000/maxSamplesNum  // sample for the 1Hz signal expressed in microseconds 
+#define oneHzSample 1000000/(maxSamplesNum/rate) //Uncomment this line and comment the above line for a more accurate oneHzSample
 
-#define threshold 1 //Minimal detection range for producing sound
+#define threshold 2 //Minimal detection range for producing sound
 
 //Defines buttons
 #define button0 2
@@ -16,8 +16,8 @@
 uint32_t sinceLast = 0;
 
 uint8_t buttonsPressed = 0; //Number of buttons being pressed, limit of 255 buttons
-uint16_t DACoutput; //Final output to the speakers after multiplication
-uint16_t TEMPoutput; //All additives go here, then they are check against the requirments
+int16_t DACoutput; //Final output to the speakers after multiplication
+int16_t TEMPoutput; //All additives go here, then they are check against the requirments
 
 //If our maxSamplesNum is over 120, AKA one period of the waveform contains more than 255 samples, then move to uint16_t
 uint8_t i = 0; //Position in the wave
@@ -64,6 +64,7 @@ void loop() {
   sample = constrain(sample, 0, oneHzSample);
   sample = map(currentRead, 0, 4095, 0, oneHzSample);
 
+  
   //Multiply the waveform
   TEMPoutput = 0;
   buttonsPressed = 0;
@@ -79,7 +80,7 @@ void loop() {
     TEMPoutput += waveformsTable[2][i];
     buttonsPressed++;
   }
-
+  
   //If activated
   if (buttonsPressed > 0 && currentRead > threshold) {
     i += rate;
@@ -87,25 +88,12 @@ void loop() {
       i = 0;
     }
 
-    //ENVELOPE
-    /*
-      i2+=rate2;
-      if (i2 >= maxSamplesNum) {
-      i2=0;
-      }
-
-      TEMPoutput += waveformsTable[1][i2];
-      buttonsPressed += 1; */
-    //ENVELOPE END
-
     DACoutput = TEMPoutput / buttonsPressed; //Gets average of all the waveforms pressed
 
   } else { //If the pot output is below the threshold, null output
     DACoutput *= 0.9;
     i = 0;
   }
-
-
 
   //Debug information
   Serial.print(sample);
