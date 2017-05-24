@@ -52,4 +52,4 @@ Alex B.
 
 Ibrahim M.
 
-Special thanks to: The Arduino Forums, 
+Special thanks to: The Arduino Forums, RCAudio, Arduino, CrossRoads, and ard_newbie
