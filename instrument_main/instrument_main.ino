@@ -61,7 +61,7 @@ void loop() {
   // 1 Hz is the minimum freq for the complete wave
   // 170 Hz is the maximum freq for the complete wave. Measured considering the loop and the analogRead() time
   currentRead = constrain(analogRead(A0), 0, 4095);
-  sample = map(currentRead, 0, 4095, 0, oneHzSample);
+  sample = (currentRead/4095)*oneHzSample;
 
   
   //Multiply the waveform
