@@ -54,14 +54,13 @@ void setup() {
 
 void loop() {
  //Every 17 milliseconds, aka highest it takes to run the loop, run through the body
- if (millis()%17==0) {
+ if (millis()%6==0) {
   // Read the the potentiometer and map the value  between the maximum and the minimum sample available
   
   // THE COMMENTS BELOW ARE INACCURATE
   // 1 Hz is the minimum freq for the complete wave
   // 170 Hz is the maximum freq for the complete wave. Measured considering the loop and the analogRead() time
-  currentRead = analogRead(A0);
-  sample = constrain(sample, 0, oneHzSample);
+  currentRead = constrain(analogRead(A0), 0, 4095);
   sample = map(currentRead, 0, 4095, 0, oneHzSample);
 
   
@@ -102,15 +101,15 @@ void loop() {
   Serial.print(" ");
   Serial.print(DACoutput);
   Serial.print(" ");
-  Serial.println(millis() - sinceLast);
-
-  sinceLast = millis();
 
   analogWrite(DAC0, DACoutput);  // write the selected waveform on DAC0
   analogWrite(DAC1, DACoutput);  // write the selected waveform on DAC1
 
   delayMicroseconds(sample);  // Hold the sample value for the sample time
  }
+  Serial.println(millis() - sinceLast);
+
+  sinceLast = millis();
 }
 
 float retreiveNoteFreq(int freq) {
