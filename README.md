@@ -1,23 +1,21 @@
 # Vuision
-Arduino/Software based Synthesizer of user provided pitch and waveform. Played like a mix between a guitar and a violin.
+Arduino/Software based Synthesizer of user provided pitch and waveform. Played like a mix between a guitar, violin and piano.
 
-The Vuision is a synthesizer that uses an Arduino Due, a potentiometer, buttons, a speaker, and a few other components to create dynamic sound. It's closest acoustic relatives are a guitar and a violin, however, it also shares similarities with many other potentiometer-based synthesizer.
+The Vuision is a synthesizer that uses an Arduino Due, three potentiometers, a speaker, and a few other components to create dynamic sound. It's closest acoustic relatives are a guitar/violin and a piano, however, it also shares similarities with many other potentiometer-based synthesizers.
 
 # Construction and Usage
-The Vuision is comprised of two wooden slabs held together by four supports nailed/screwed to each corner of the Vuison. All of components of the Vuison are housed somewhere on the two wooden slabs - all inputs on the top and all operational and electrical processing on the bottom. All wiring is run through a hole in the top slab to the bottom. The Vuision takes three push buttons and a softpot membrane potentiometer as inputs from the user. Each button corresponds to a different waveform that will play/repeat when pressed, as long as the potentiometer is also pressed somewhere. If more than one button is pressed, the waveforms that are being played will average out and create a new waveform period. The potentiometer and push buttons must be pressed at the same time to produce sound and the potentiometer controls the pitch of the waveform.
+The Vuision is comprised of a large wooden slab with a deep cutout fir components in the lower bottom, a small channel for cable routing, and three potentiometers that measure position pressed, an arduinio Due, and breadborad circutry for the potentiometers and an audio output. The cutout has a slab of flat wood mounted onto it where the components are screwed in. Audio and power are housed outside of the instrument, however, a battery can be mounted on for compact usage. The synthesis is entirely software based uses Wavetable DDS (Direct Digital Sytnthesis)+Grain Additive Synthesis combined with the onboard clock timer to generate waveforms. Moving along each potentiometer modulates pitch, and more than one can be played at the same time.
 
 # Assembly
 Materials are:
 
 -Arduino Due 
 
--3 push buttons
-
--Softpot Membrane Potentiometer 
+-3 Softpot Membrane Potentiometers 
 
 -Solderless breadboard 
 
--Wires, capacitors, resistors, etc. [Needs change based off of configuration] 
+-Wires, 10uF capacitor, a couple 5.1k resistors, a 500 ohm resistor, etc. [Needs change based off of configuration]
 
 -Screws and nails [Needs changed based off of configuration] 
 
@@ -27,9 +25,7 @@ Materials are:
 
 -Power bank 
 
--Two woods slabs 
-
--Four wooden supports
+-A wooden slab
 
 Tools: 
 
@@ -37,9 +33,11 @@ Tools:
 
 -Drill 
 
--Tape 
+-Electrical Tape 
 
--Hot Glue or Gorilla Glue
+-Wood Glue
+
+-Something to carve channels (Routers are better, but we used a chisel)
 
 # Credits
 Designed and implemented by:
@@ -52,4 +50,4 @@ Alex B.
 
 Ibrahim M.
 
-Special thanks to: The Arduino Forums, RCAudio, Arduino, CrossRoads, and ard_newbie
+Special thanks to: The Arduino Forums, RCArduino, Arduino, CrossRoads, and ard_newbie
