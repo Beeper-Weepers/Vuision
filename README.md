@@ -1,7 +1,7 @@
 # Vuision
 Arduino/Software based Synthesizer of user provided pitch and waveform. Played like a mix between a guitar, violin and piano.
 
-![alt text](https://raw.githubusercontent.com/Beeper-Weepers/Vuision/main/WIPInstrument.jpg)
+![alt text](https://github.com/Beeper-Weepers/Vuision/blob/master/WIPInstrument.jpg?raw=true)
 
 The Vuision is a synthesizer that uses an Arduino Due, three potentiometers, a speaker, and a few other components to create dynamic sound. It's closest acoustic relatives are a guitar/violin and a piano, however, it also shares similarities with many other potentiometer-based synthesizers.
 
@@ -9,7 +9,7 @@ The Vuision is a synthesizer that uses an Arduino Due, three potentiometers, a s
 # Construction and Usage
 The Vuision is comprised of a large wooden slab with a deep cutout fir components in the lower bottom, a small channel for cable routing, and three potentiometers that measure position pressed, an arduinio Due, and breadborad circutry for the potentiometers and an audio output. The cutout has a slab of flat wood mounted onto it where the components are screwed in. Audio and power are housed outside of the instrument, however, a battery can be mounted on for compact usage. The synthesis is entirely software based uses Wavetable DDS (Direct Digital Sytnthesis)+Grain Additive Synthesis combined with the onboard clock timer to generate waveforms. Moving along each potentiometer modulates pitch, and more than one can be played at the same time.
 
-![alt text](https://raw.githubusercontent.com/Beeper-Weepers/Vuision/main/components.jpg)
+![alt text](https://github.com/Beeper-Weepers/Vuision/blob/master/components.jpg?raw=true)
 
 # Assembly
 Materials are:
