@@ -7,24 +7,19 @@
 
 //SECTION - INPUT & FREQUENCY
 
-// 1 / grain count for more efficiency, multiplication is faster in the new value mapping
+// Amount of grains/inputs being used
 #define grains 3
 
-uint32_t ulPhaseAccumulator = 0; // the phase accumulator points to the current sample in our wavetable
-volatile uint32_t ulPhaseIncrement = 0;  // the phase increment controls the rate at which we move through the wave table (higher values = higher frequencies)
-uint8_t ulInput = 0; // input from potentiometer (in the loop it is shifted from 12-bit to 7-bit)
 
-//second potentiometer
-uint32_t ulPhaseAccumulator2 = 0;
-volatile uint32_t ulPhaseIncrement2 = 0; 
-uint8_t ulInput2 = 0;
+//potentiomter model
+struct potentiometer {
+  uint32_t ulPhaseAccumulator = 0; // the phase accumulator points to the current sample in our wavetable
+  volatile uint32_t ulPhaseIncrement = 0; // the phase increment controls the rate at which we move through the wave table (higher values = higher frequencies)
+  uint8_t ulInput = 0; // input from potentiometer (in the loop it is shifted from 12-bit to 7-bit, so this is fine)
+};
 
-//third potentiometer
-uint32_t ulPhaseAccumulator3 = 0;
-volatile uint32_t ulPhaseIncrement3 = 0;
-uint8_t ulInput3 = 0;
 
-bool pressed;
+bool pressed; // if any of the pots are being pressed
 
 
 //SECTION - SAMPLE RATE & CLOCK TIMER
@@ -62,11 +57,22 @@ uint16_t ulOutput;
 
 void setup()
 {
-  Serial.begin(9600);
+  Serial.begin(9600); //begins debug connection
 
-  createNoteTable(SAMPLE_RATE);
+  createNoteTable(SAMPLE_RATE); //generates midi notes
+ 
+  //wavetables
   createSineTable();
   createRampTable();
+
+
+  // Pot models for each pot - basically a rough model for variables assigned to each pot
+  struct potentiometer Pot1;
+  struct potentiometer Pot2;
+  struct potentiometer Pot3;
+
+
+  //Timer and DAC
   
   /* turn on the timer clock in the power management controller */
   pmc_set_writeprotect(false);
@@ -95,19 +101,20 @@ void loop()
   // then look up the phaseIncrement required to generate the note in our nMidiPhaseIncrement table
 
   //Get shifted midi note input
-  ulInput = analogRead(0)>>3;
-  ulInput2 = analogRead(1)>>3;
-  ulInput3 = analogRead(2)>>3;
+  Pot1.ulInput = analogRead(0)>>3;
+  Pot2.ulInput = analogRead(1)>>3;
+  Pot3.ulInput = analogRead(2)>>3;
 
   // identify if the potentiometers are pressed or not (saves on the checks in the interrupt timer)
-  pressed = !(ulInput<1 && ulInput2<1 && ulInput3<1);
-  Serial.println(pressed);
-  Serial.print(ulOutput);
+  pressed = !(Pot1.ulInput<1 && Pot2.ulInput<1 && Pot3.ulInput3<1);
+
+  //debugs
+  Serial.println(pressed); //this one seems to be necessary?
   
   //convert to a frequency
-  ulPhaseIncrement = nMidiPhaseIncrement[ulInput]; 
-  ulPhaseIncrement2 = nMidiPhaseIncrement[ulInput2];
-  ulPhaseIncrement3 = nMidiPhaseIncrement[ulInput3];
+  Pot1.ulPhaseIncrement = Pot1.nMidiPhaseIncrement[Pot1.ulInput]; 
+  Pot2.ulPhaseIncrement = Pot2.nMidiPhaseIncrement[Pot2.ulInput];
+  Pot3.ulPhaseIncrement = Pot3.nMidiPhaseIncrement[Pot3.ulInput];
 }
 
 void TC4_Handler()
@@ -115,28 +122,28 @@ void TC4_Handler()
   // We need to get the status to clear it and allow the interrupt to fire again
   TC_GetStatus(TC1, 1);
 
-  ulPhaseAccumulator += ulPhaseIncrement; // 32 bit accumulator, overflow handling below
-  ulPhaseAccumulator2 += ulPhaseIncrement2;
-  ulPhaseAccumulator3 += ulPhaseIncrement3;
+  Pot1.ulPhaseAccumulator += Pot1.ulPhaseIncrement; // 32 bit accumulator, overflow handling below
+  Pot2.ulPhaseAccumulator += Pot2.ulPhaseIncrement;
+  Pot3.ulPhaseAccumulator += Pot3.ulPhaseIncrement;
 
   // if the phase accumulator over flows - we have been through one cycle at the current pitch, now we need to reset the grains ready for our next cycle
-  if(ulPhaseAccumulator > SAMPLES_PER_CYCLE_FIXEDPOINT) {
+  if(Pot1.ulPhaseAccumulator > SAMPLES_PER_CYCLE_FIXEDPOINT) {
    // carry the remainder of the phase accumulator
-   ulPhaseAccumulator -= SAMPLES_PER_CYCLE_FIXEDPOINT;
+   Pot1.ulPhaseAccumulator -= SAMPLES_PER_CYCLE_FIXEDPOINT;
   }
   //second grain overflow
-  if(ulPhaseAccumulator2 > SAMPLES_PER_CYCLE_FIXEDPOINT) {
-   ulPhaseAccumulator2 -= SAMPLES_PER_CYCLE_FIXEDPOINT;
+  if(Pot2.ulPhaseAccumulator > SAMPLES_PER_CYCLE_FIXEDPOINT) {
+   Pot2.ulPhaseAccumulator -= SAMPLES_PER_CYCLE_FIXEDPOINT;
   }
   //third grain overflow
-  if(ulPhaseAccumulator3 > SAMPLES_PER_CYCLE_FIXEDPOINT) {
-    ulPhaseAccumulator3 -= SAMPLES_PER_CYCLE_FIXEDPOINT;
+  if(Pot3.ulPhaseAccumulator > SAMPLES_PER_CYCLE_FIXEDPOINT) {
+    Pot3.ulPhaseAccumulator -= SAMPLES_PER_CYCLE_FIXEDPOINT;
   }
 
   // get current samples for grains and add the grains together  
-  ulOutput = nSineTable[ulPhaseAccumulator>>20] + nSineTable[(uint16_t) ((ulPhaseAccumulator2>>20) * ((float) nSineTable[ulPhaseAccumulator2>>20]/4095))]; //+ (nSineTable[ulPhaseAccumulator3>>20];
+  ulOutput = nSineTable[Pot1.ulPhaseAccumulator>>20] + nSineTable[(uint16_t) ((Pot2.ulPhaseAccumulator>>20) * ((float) nSineTable[Pot2.ulPhaseAccumulator>>20]/4095))]; //+ (nSineTable[Pot3.ulPhaseAccumulator>>20]; // third pot
   // only problem is we have three grains so we can't bitshift (result is somewhere within 13-14 bits), and we must convert back to 12-bit
-  // what this essentially is the equation (ulOutput / 12285) *4095 but simplified
+  // what this essentially is the equation (ulOutput / 12285) *4095 but simplified, pulled to zero if nothing's pressed
   ulOutput = (ulOutput/grains)*pressed;
   
   // we cheated and user analogWrite to enable the dac, but here we want to be fast so write directly
