@@ -18,6 +18,11 @@ struct potentiometer {
   uint8_t ulInput = 0; // input from potentiometer (in the loop it is shifted from 12-bit to 7-bit, so this is fine)
 };
 
+// Pot models for each pot - basically a rough model for variables assigned to each pot
+struct potentiometer Pot1;
+struct potentiometer Pot2;
+struct potentiometer Pot3;
+
 
 bool pressed; // if any of the pots are being pressed
 
@@ -66,12 +71,6 @@ void setup()
   createRampTable();
 
 
-  // Pot models for each pot - basically a rough model for variables assigned to each pot
-  struct potentiometer Pot1;
-  struct potentiometer Pot2;
-  struct potentiometer Pot3;
-
-
   //Timer and DAC
   
   /* turn on the timer clock in the power management controller */
@@ -106,15 +105,15 @@ void loop()
   Pot3.ulInput = analogRead(2)>>3;
 
   // identify if the potentiometers are pressed or not (saves on the checks in the interrupt timer)
-  pressed = !(Pot1.ulInput<1 && Pot2.ulInput<1 && Pot3.ulInput3<1);
+  pressed = !(Pot1.ulInput<1 && Pot2.ulInput<1 && Pot3.ulInput<1);
 
   //debugs
-  Serial.println(pressed); //this one seems to be necessary?
+  Serial.println(ulOutput); //this one seems to be necessary?
   
   //convert to a frequency
-  Pot1.ulPhaseIncrement = Pot1.nMidiPhaseIncrement[Pot1.ulInput]; 
-  Pot2.ulPhaseIncrement = Pot2.nMidiPhaseIncrement[Pot2.ulInput];
-  Pot3.ulPhaseIncrement = Pot3.nMidiPhaseIncrement[Pot3.ulInput];
+  Pot1.ulPhaseIncrement = nMidiPhaseIncrement[Pot1.ulInput]; 
+  Pot2.ulPhaseIncrement = nMidiPhaseIncrement[Pot2.ulInput];
+  Pot3.ulPhaseIncrement = nMidiPhaseIncrement[Pot3.ulInput];
 }
 
 void TC4_Handler()
