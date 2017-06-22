@@ -27,9 +27,9 @@ void createNoteTable(float fSampleRate)
 // default int is 32 bit, in most cases its best to use uint32_t but for large arrays its better to use smaller
 // data types if possible, here we are storing 12 bit samples in 16 bit ints
 uint16_t nSineTable[WAVE_SAMPLES];
-
+uint16_t nTriangleTable[WAVE_SAMPLES];
 uint16_t nRampTable[WAVE_SAMPLES];
-#define LIFT 300
+
 
 // create the individual samples for our sinewave table
 void createSineTable()
@@ -42,12 +42,31 @@ void createSineTable()
   }
 }
 
+
+#define LIFT 100.0
+
 void createRampTable() {
-  for(uint16_t nIndex = 0;nIndex < WAVE_SAMPLES;nIndex++)
+  for(uint16_t nIndex = 0;nIndex < WAVE_SAMPLES ;nIndex++)
   {
     // normalised to 12 bit range 0-4095
-    nRampTable[nIndex] = (uint16_t) (((float) nIndex/WAVE_SAMPLES) * (4095.0 - LIFT)) + LIFT;
+     nRampTable[nIndex] = (uint16_t)  (( (float) nIndex/WAVE_SAMPLES ) * (4095.0 - LIFT)) + LIFT;
     Serial.println(nRampTable[nIndex]);
+  }
+}
+
+
+#define MID_POINT (WAVE_SAMPLES/2)
+
+void createTriangleTable() {
+  for(uint16_t nIndex = 0;nIndex < WAVE_SAMPLES ;nIndex++)
+  {
+    // normalised to 12 bit range 0-4095
+    if (nIndex < MID_POINT) {
+      nTriangleTable[nIndex] = (uint16_t)  (( (float) nIndex/MID_POINT ) * 4095.0);
+    } else {
+      nTriangleTable[nIndex] = (uint16_t)  (( (float) (MID_POINT-(nIndex-MID_POINT))/MID_POINT ) * 4095.0);
+    }
+    Serial.println(nTriangleTable[nIndex]);
   }
 }
 
