@@ -24,7 +24,10 @@ void createNoteTable(float fSampleRate)
 //SECTION - WAVETABLES
 
 #define WAVE_SAMPLES 600 // Create a table to hold pre computed sinewave, the table has a resolution of 600 samples
-
+#define MAX_RESOLUTION 4095 //Max height of a wave; lower than max res because of the attack phase (3276 is 4095*0.8)
+const uint16_t res1_2 = MAX_RESOLUTION * 0.5;
+const uint16_t res1_3 = MAX_RESOLUTION * 0.3;
+const uint16_t res1_5 = MAX_RESOLUTION * 0.2;
 
 // storing 12 bit samples in 16 bit int arrays
 uint16_t nSineTable[WAVE_SAMPLES];
@@ -35,11 +38,16 @@ uint16_t nSquareTable[WAVE_SAMPLES];
 
 //Sin
 void createSineTable() {
-  float chunk = (2.0*PI)/WAVE_SAMPLES; //saves on precomputation by computing this chunk once instead of 120 times
+  //Preprocessed chunk
+  const float chunk = (2.0*PI)/WAVE_SAMPLES; //saves on precomputation by computing this chunk once instead of 600 times
+  const float chunk2Harmonic = 3*((2.0*PI)/WAVE_SAMPLES); //similar to chunk, however, adds in the 1/3 wave size as part of the preprocessed chunk
+  const float chunk3Harmonic = 5*((2.0*PI)/WAVE_SAMPLES); //similar to chunk, however, adds in the 1/3 wave size as part of the preprocessed chunk
+  
   for(uint16_t nIndex = 0;nIndex < WAVE_SAMPLES;nIndex++) {
-    // normalised to 12 bit range 0-4095
-    nSineTable[nIndex] = ((1+sin(chunk*nIndex))*3071.0)/2; //fundamental, 3/4ths volume
-    nSineTable[nIndex] += ((1+sin(chunk*nIndex*3))*1023.0)/2; //another harmonic, with 3 periods and 1/4th volume
+    // normalised to 12 bit range
+    nSineTable[nIndex] = ((1+sin(chunk*nIndex))*res1_2)/2; //fundamental, 3/4ths volume
+    nSineTable[nIndex] += ((1+sin(chunk2Harmonic*nIndex))*res1_3)/2; //another harmonic, with 3 periods and 1/4th volume
+    nSineTable[nIndex] += ((1+sin(chunk3Harmonic*nIndex))*res1_5)/2; //another harmonic, with 3 periods and 1/4th volume
   }
 }
 
@@ -48,10 +56,9 @@ void createSineTable() {
 #define LIFT 100.0
 
 void createRampTable() {
-  for(uint16_t nIndex = 0;nIndex < WAVE_SAMPLES ;nIndex++)
-  {
-    // normalised to 12 bit range 0-4095
-     nRampTable[nIndex] =  ((float) nIndex/WAVE_SAMPLES ) * (4095 - LIFT) + LIFT;
+  for(uint16_t nIndex = 0;nIndex < WAVE_SAMPLES ;nIndex++) {
+    // normalised to 12 bit range
+     nRampTable[nIndex] =  ((float) nIndex/WAVE_SAMPLES ) * (MAX_RESOLUTION - LIFT) + LIFT;
   }
 }
 
@@ -61,11 +68,11 @@ void createRampTable() {
 void createTriangleTable() {
   for(uint16_t nIndex = 0;nIndex < WAVE_SAMPLES ;nIndex++)
   {
-    // normalised to 12 bit range 0-4095
+    // normalised to 12 bit range
     if (nIndex < MID_POINT) {
-      nTriangleTable[nIndex] = ( (float) nIndex/MID_POINT ) * 4095;
+      nTriangleTable[nIndex] = ( (float) nIndex/MID_POINT ) * MAX_RESOLUTION;
     } else {
-      nTriangleTable[nIndex] = ( (float) (MID_POINT-(nIndex-MID_POINT))/MID_POINT ) * 4095;
+      nTriangleTable[nIndex] = ( (float) (MID_POINT-(nIndex-MID_POINT))/MID_POINT ) * MAX_RESOLUTION;
     }
   }
 }
@@ -75,9 +82,9 @@ void createTriangleTable() {
 void createSquareTable() {
   for(uint16_t nIndex = 0; nIndex < WAVE_SAMPLES; nIndex++) {
     if (nIndex < MID_POINT) {
-      nSquareTable[nIndex] = 0;
+      nSquareTable[nIndex] = MAX_RESOLUTION/2;
     } else {
-      nSquareTable[nIndex] = 4095;
+      nSquareTable[nIndex] = MAX_RESOLUTION;
     }
   }
 }
@@ -110,7 +117,7 @@ inline void envelopeUpdate(Envelope *env) {
 void envelopeTableFill(Envelope *env,uint16_t *wav) {
  for(uint16_t nIndex = 0;nIndex < WAVE_SAMPLES;nIndex++) {
    //Take value from sine table to construct a normalized table
-   env->nTable[nIndex] = (float) wav[nIndex] / 4095.0;
+   env->nTable[nIndex] = (float) wav[nIndex] / MAX_RESOLUTION;
  }
 }
 

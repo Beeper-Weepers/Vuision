@@ -8,13 +8,15 @@
 //SECTION - INPUT & FREQUENCY
 
 // Amount of grains/inputs being used
-#define grains 3
+#define GRAINS 3
+#define INTERPOL_AMOUNT 0.6;
 
 //potentiomter model
 struct Potentiometer {
   volatile uint32_t ulPhaseAccumulator = 0; // the phase accumulator points to the current sample in our wavetable
   uint32_t ulPhaseIncrement = 0; // the phase increment controls the rate at which we move through the wave table (higher values = higher frequencies)
   uint8_t ulInput = 0; // input from potentiometer (in the loop it is shifted from 12-bit to 7-bit, so this is fine)
+  boolean lastPressed = false;
 };
 
 // Pot models for each pot - basically a rough model for variables assigned to each pot
@@ -50,8 +52,8 @@ bool pressed; // if any of the pots are being pressed
 // Our fixed point format will be 10P22 = 32 bits
 #define SAMPLE_RATE 44100.0
 #define SAMPLES_PER_CYCLE 600
-#define SAMPLES_PER_CYCLE_FIXEDPOINT (SAMPLES_PER_CYCLE<<20)
-#define TICKS_PER_CYCLE (float)((float)SAMPLES_PER_CYCLE_FIXEDPOINT/(float)SAMPLE_RATE)
+const uint32_t SAMPLES_PER_CYCLE_FIXEDPOINT = (SAMPLES_PER_CYCLE<<20);
+const float TICKS_PER_CYCLE = (float)((float)SAMPLES_PER_CYCLE_FIXEDPOINT/(float)SAMPLE_RATE);
 
 //Final output
 volatile uint16_t ulOutput;
@@ -67,6 +69,8 @@ volatile uint16_t ulOutput;
 
 struct Envelope Env1;
 volatile float fade = 1; //fade envelope
+#define attack_add 0.2 //how much higher the attack peak is than the normal peak (like this for performance)
+boolean attack = true;
 
 
 
@@ -77,12 +81,13 @@ void setup()
   createNoteTable(SAMPLE_RATE); //generates midi notes
  
   //wavetables
-  createSineTable();
+  createRampTable();
   createSquareTable();
+  createSineTable();
 
- //envelope wavetable
- envelopeTableFill(&Env1, nSineTable);
- setEnvelopeRate(&Env1, ((pow(2.0,((-2)-69.0)/12.0)) * 440.0) * TICKS_PER_CYCLE);
+  //envelope wavetable
+  envelopeTableFill(&Env1, nSineTable);
+  setEnvelopeRate(&Env1, ((pow(2.0,((-2)-69.0)/12.0)) * 440.0) * TICKS_PER_CYCLE);
 
   //Timer and DAC
   
@@ -115,26 +120,39 @@ void loop()
 
   //Get shifted midi note input
   uint8_t rawIn = analogRead(0)>>3;
-  Pot1.ulInput += (rawIn - Pot1.ulInput) * 0.6;
-  Pot2.ulInput = analogRead(1)>>3;
-  Pot3.ulInput = analogRead(2)>>3;
+  Pot1.ulInput += (rawIn - Pot1.ulInput) * INTERPOL_AMOUNT;
+  rawIn = analogRead(1)>>3; //reuse variable
+  Pot2.ulInput += (rawIn - Pot2.ulInput) * INTERPOL_AMOUNT;
+  rawIn = analogRead(2)>>3; //same thing here
+  Pot3.ulInput += (rawIn - Pot3.ulInput) * INTERPOL_AMOUNT;
 
   // identify if the potentiometers are pressed or not (saves on the checks in the interrupt timer)
   pressed = Pot1.ulInput>1 || Pot2.ulInput>1 || Pot3.ulInput>1;
-
-  Serial.println(ulOutput);
+  if (pressed) {
+    Pot1.lastPressed = Pot1.ulInput>1;
+    Pot2.lastPressed = Pot2.ulInput>1;
+    Pot3.lastPressed = Pot3.ulInput>1;
+  }
   
   //convert to a frequency
   Pot1.ulPhaseIncrement = nMidiPhaseIncrement[Pot1.ulInput]; 
   Pot2.ulPhaseIncrement = nMidiPhaseIncrement[Pot2.ulInput];
   Pot3.ulPhaseIncrement = nMidiPhaseIncrement[Pot3.ulInput];
 
-  // Fade envelope update
-  if (pressed) { // fade in
-   fade += (1.0 - fade) * 0.05;
+  // ADSR envelope update
+  if (pressed) { 
+   float fadePoint = 0.8 + (attack * attack_add); //Calculation point to interpolate to
+   //Transition to Decay and Sustain
+   if (fade >= (0.8+attack_add) - 0.02) {
+    attack = false;
+   }
+   fade += (fadePoint - fade) * 0.2; //Interpolation
   } else { //fade out
-   fade *= 0.96;
+   fade *= 0.6;
+   attack = (fade <= 0.3);
   }
+
+  Serial.println(attack);
 }
 
 
@@ -147,7 +165,7 @@ void TC4_Handler()
 
  //Envelope 1 update
  envelopeUpdate(&Env1);
- float volEnv = Env1.nTable[Pot1.ulPhaseAccumulator>>20];
+ float volEnv = Env1.nTable[Env1.ulPhaseAccumulator>>20];
 
   // 32 bit accumulators update
   Pot1.ulPhaseAccumulator += Pot1.ulPhaseIncrement; 
@@ -162,13 +180,8 @@ void TC4_Handler()
   if(Pot3.ulPhaseAccumulator > SAMPLES_PER_CYCLE_FIXEDPOINT) { //third grain overflow
     Pot3.ulPhaseAccumulator -= SAMPLES_PER_CYCLE_FIXEDPOINT; }
  
-  // get current samples for grains and add the grains together  
-  ulOutput = nSquareTable[Pot1.ulPhaseAccumulator>>20] * volEnv * fade;
-  
-  //+ (nSineTable[Pot3.ulPhaseAccumulator>>20]; // third pot
-  // only problem is we have three grains so we can't bitshift (result is somewhere within 13-14 bits), and we must convert back to 12-bit
-  // what this essentially is the equation (ulOutput / 12285) *4095 but simplified, pulled to zero if nothing's pressed
-  // ulOutput = abs(ulOutput); ///2);
+  // get current samples for grains and add the grains together
+  ulOutput = ((nSineTable[Pot1.ulPhaseAccumulator>>20]*Pot1.lastPressed + nSquareTable[Pot2.ulPhaseAccumulator>>20]*Pot2.lastPressed) / 2) * volEnv * fade;
 
   // we cheated and use analogWrite to enable the dac, but here we want to be fast so write directly
    dacc_write_conversion_data(DACC_INTERFACE, ulOutput);
