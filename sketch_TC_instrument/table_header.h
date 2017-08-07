@@ -10,7 +10,7 @@
 uint32_t nMidiPhaseIncrement[MIDI_NOTES];
 
 // fill the note table with the phase increment values we require to generate the note
-void createNoteTable(float fSampleRate)
+void createNoteTable()
 {
   for(uint32_t unMidiNote = 0;unMidiNote < MIDI_NOTES;unMidiNote++)
   {
@@ -82,7 +82,7 @@ void createTriangleTable() {
 void createSquareTable() {
   for(uint16_t nIndex = 0; nIndex < WAVE_SAMPLES; nIndex++) {
     if (nIndex < MID_POINT) {
-      nSquareTable[nIndex] = MAX_RESOLUTION/2;
+      nSquareTable[nIndex] = 0;
     } else {
       nSquareTable[nIndex] = MAX_RESOLUTION;
     }
