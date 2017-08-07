@@ -69,6 +69,8 @@ volatile uint16_t ulOutput;
 //SECTION - ENVELOPE (EXT)
 
 struct Envelope Env1;
+
+//ADSR
 volatile float fade = 1; //fade envelope
 #define attack_add 0.2 //how much higher the attack peak is than the normal peak (like this for performance)
 boolean attack = true;
@@ -110,7 +112,7 @@ void setup()
   NVIC_EnableIRQ(TC4_IRQn);
 
   // this is a cheat - enable the DAC
-  analogWriteResolution(12); 
+  //analogWriteResolution(12);
   analogWrite(DAC1,0);
 }
 
@@ -120,13 +122,16 @@ void loop()
   // then look up the phaseIncrement required to generate the note in our nMidiPhaseIncrement table
 
   //Get shifted midi note input
+  uint32_t throwaway = analogRead(0);
   Pot1.rawInput = analogRead(0)>>3;
-  Pot1.ulInput += (Pot1.rawInput - Pot1.ulInput) * INTERPOL_AMOUNT; //interpol
-  
+  throwaway = analogRead(1);
   Pot2.rawInput = analogRead(1)>>3;
+  throwaway = analogRead(2);
+  Pot3.rawInput = analogRead(2)>>3; 
+
+  //Interpolate to rawInput amount
+  Pot1.ulInput += (Pot1.rawInput - Pot1.ulInput) * INTERPOL_AMOUNT; //interpol
   Pot2.ulInput += (Pot2.rawInput - Pot2.ulInput) * INTERPOL_AMOUNT;
-  
-  Pot3.rawInput = analogRead(2)>>3; //same thing here
   Pot3.ulInput += (Pot3.rawInput - Pot3.ulInput) * INTERPOL_AMOUNT;
 
   // identify if the potentiometers are pressed or not (saves on the checks in the interrupt timer)
@@ -154,7 +159,7 @@ void loop()
    }
    fade += (fadePoint - fade) * 0.2; //Interpolation
   } else { //fade out
-   fade *= 0.98;
+   fade *= 0.95;
    attack = (fade <= 0.6);
   }
 
