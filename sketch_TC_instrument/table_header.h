@@ -1,5 +1,5 @@
-#ifndef _Waveforms_h_
-#define _Waveforms_h_
+#ifndef _table_header_h_
+#define _table_header_h_
 
 
 //SECTION - MIDI NOTES AND TABLE

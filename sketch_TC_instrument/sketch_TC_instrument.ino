@@ -122,12 +122,12 @@ void loop()
   // then look up the phaseIncrement required to generate the note in our nMidiPhaseIncrement table
 
   //Get shifted midi note input
-  uint32_t throwaway = analogRead(0);
+  uint32_t tempRead = analogRead(0);
   Pot1.rawInput = analogRead(0)>>3;
-  throwaway = analogRead(1);
+  tempRead = analogRead(1);
   Pot2.rawInput = analogRead(1)>>3;
-  throwaway = analogRead(2);
-  Pot3.rawInput = analogRead(2)>>3; 
+  tempRead = analogRead(2);
+  Pot3.rawInput = analogRead(2)>>3;
 
   //Interpolate to rawInput amount
   Pot1.ulInput += (Pot1.rawInput - Pot1.ulInput) * INTERPOL_AMOUNT; //interpol
