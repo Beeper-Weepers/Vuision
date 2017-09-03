@@ -91,34 +91,22 @@ void createSquareTable() {
 
 
 //SECTION - ENVELOPES
-//Basically, I love OOP and I try to fake it
 
-
-//Envelope model
-struct Envelope {
-  volatile uint32_t ulPhaseAccumulator = 0; // the phase accumulator points to the current sample in our wavetable
-  uint32_t ulPhaseIncrement = 0; // rate control, 64 is middle of the MIDI spectrum (0-128)
+class Envelope : public Oscillator {
+  private:
   float nTable[WAVE_SAMPLES];
+
+  public:
+  
+  //Sets the envelope rate (constructor)
+  void constructor(uint32_t frequency, uint16_t *wav) {
+    ulPhaseIncrement = frequency;
+    
+    for(uint16_t nIndex = 0;nIndex < WAVE_SAMPLES;nIndex++) {
+      //Take value from sine table to construct a normalized table
+      nTable[nIndex] = (float) wav[nIndex] / MAX_RESOLUTION;
+    }
+  }
 };
-
-//Sets the envelope rate (constructor)
-void setEnvelopeRate(Envelope *env, int frequency) {
- env->ulPhaseIncrement = frequency;
-}
-
-//Updates an envelope, inline because it is called often
-inline void envelopeUpdate(Envelope *env) {
- env->ulPhaseAccumulator += env->ulPhaseIncrement;
- if (env->ulPhaseAccumulator > SAMPLES_PER_CYCLE_FIXEDPOINT) { //envelope overflow
-   env->ulPhaseAccumulator -= SAMPLES_PER_CYCLE_FIXEDPOINT; }
-}
-
-//Puts the sine wave into the table of the envelope
-void envelopeTableFill(Envelope *env,uint16_t *wav) {
- for(uint16_t nIndex = 0;nIndex < WAVE_SAMPLES;nIndex++) {
-   //Take value from sine table to construct a normalized table
-   env->nTable[nIndex] = (float) wav[nIndex] / MAX_RESOLUTION;
- }
-}
 
 #endif 

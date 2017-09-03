@@ -4,53 +4,28 @@
 // For helpful background information on Arduino Due Timer Configuration, refer to the following link: http://arduino.cc/forum/index.php?action=post;topic=130423.15;num_replies=20
 // For background information on the DDS Technique see: http://interface.khm.de/index.php/lab/experiments/arduino-dds-sinewave-generator/
 
+#define _max(a,b) ((a)>(b)?(a):(b));
 
-//SECTION - INPUT & FREQUENCY
+/*These are the clock frequencies available to the timers /2,/8,/32,/128
+ 84Mhz/2 = 42.000 MHz
+ 84Mhz/8 = 10.500 MHz
+ 84Mhz/32 = 2.625 MHz
+ 84Mhz/128 = 656.250 KHz
+ 
+ 44.1Khz = CD Sample Rate (aim for closest to 44.1Khz)
 
-// Amount of grains/inputs being used
-#define GRAINS 3
-#define INTERPOL_AMOUNT 0.6;
+ 42Mhz/44.1Khz = 952.38
+ 10.5Mhz/44.1Khz = 238.09 // best fit divide by 8 = TIMER_CLOCK2 and 238 ticks per sample 
+ 2.625Hmz/44.1Khz = 59.5
+ 656Khz/44.1Khz = 14.88
 
-//potentiomter model
-struct Potentiometer {
-  volatile uint32_t ulPhaseAccumulator = 0; // the phase accumulator points to the current sample in our wavetable
-  uint32_t ulPhaseIncrement = 0; // the phase increment controls the rate at which we move through the wave table (higher values = higher frequencies)
-  uint8_t ulInput = 0; // input from potentiometer (in the loop it is shifted from 12-bit to 7-bit, so this is fine)
-  uint8_t rawInput = 0; //Raw, uninterpolated input from pot
-  bool lastPressed = false; //if last pressed
-};
+ 84Mhz/44.1Khz = 1904 instructions per tick
 
-// Pot models for each pot - basically a rough model for variables assigned to each pot
-struct Potentiometer Pot1;
-struct Potentiometer Pot2;
-struct Potentiometer Pot3;
-
-bool pressed; // if any of the pots are being pressed
-
-
-
-//SECTION - SAMPLE RATE & CLOCK TIMER
-
-// These are the clock frequencies available to the timers /2,/8,/32,/128
-// 84Mhz/2 = 42.000 MHz
-// 84Mhz/8 = 10.500 MHz
-// 84Mhz/32 = 2.625 MHz
-// 84Mhz/128 = 656.250 KHz
-// 
-// 44.1Khz = CD Sample Rate (aim for closest to 44.1Khz)
-//
-// 42Mhz/44.1Khz = 952.38
-// 10.5Mhz/44.1Khz = 238.09 // best fit divide by 8 = TIMER_CLOCK2 and 238 ticks per sample 
-// 2.625Hmz/44.1Khz = 59.5
-// 656Khz/44.1Khz = 14.88
-//
-// 84Mhz/44.1Khz = 1904 instructions per tick
-
-// full waveform = 0 to SAMPLES_PER_CYCLE
-// Phase Increment for 1 Hz =(SAMPLES_PER_CYCLE_FIXEDPOINT/SAMPLE_RATE) = 1Hz
-// Phase Increment for frequency F = (SAMPLES_PER_CYCLE/SAMPLE_RATE)*F
-// to represent 600 we need 10 bits
-// Our fixed point format will be 10P22 = 32 bits
+ full waveform = 0 to SAMPLES_PER_CYCLE
+ Phase Increment for 1 Hz =(SAMPLES_PER_CYCLE_FIXEDPOINT/SAMPLE_RATE) = 1Hz
+ Phase Increment for frequency F = (SAMPLES_PER_CYCLE/SAMPLE_RATE)*F
+ to represent 600 we need 10 bits
+ Our fixed point format will be 10P22 = 32 bits*/
 #define SAMPLE_RATE 44100.0
 #define SAMPLES_PER_CYCLE 600
 const uint32_t SAMPLES_PER_CYCLE_FIXEDPOINT = (SAMPLES_PER_CYCLE<<20);
@@ -60,21 +35,90 @@ const float TICKS_PER_CYCLE = (float)((float)SAMPLES_PER_CYCLE_FIXEDPOINT/(float
 volatile uint16_t ulOutput;
 
 
+//SECTION - INPUT & FREQUENCY/
+
+// Amount of grains/inputs being used
+#define GRAINS 3
+#define INTERPOL_AMOUNT 0.6;
+
+class Oscillator {
+  protected:
+  volatile uint32_t ulPhaseAccumulator = 0; // the phase accumulator points to the current sample in our wavetable
+  uint32_t ulPhaseIncrement = 0; // the phase increment controls the rate at which we move through the wave table (higher values = higher frequencies)
+
+  public:
+  void updatePhaseAccumulator() {     // 32 bit accumulator update
+    ulPhaseAccumulator += ulPhaseIncrement; 
+    
+    // if the phase accumulator over flows - we have been through one cycle at the current pitch, now we need to reset the grains ready for our next cycle
+    if(ulPhaseAccumulator > SAMPLES_PER_CYCLE_FIXEDPOINT) {
+      ulPhaseAccumulator -= SAMPLES_PER_CYCLE_FIXEDPOINT; // carry the remainder of the phase accumulator 
+    }  
+  }
+
+  uint32_t getPAIndex() { //get for phase accumulator
+    return Oscillator::ulPhaseAccumulator >> 20;
+  }
+
+  uint16_t paValue(uint16_t *table) {
+    return table[Oscillator::ulPhaseAccumulator >> 20];
+  }
+};
+
 
 //MIDI notes, Waveforms, envelopes, etc.
 #include "table_header.h"
 
 
+//Potentiometer class
+class Potentiometer : public Oscillator {
+  private:
+  uint8_t ulInput = 0; // input from potentiometer (in the loop it is shifted from 12-bit to 7-bit, so this is fine)
+  
+  public:
+  uint8_t rawInput = 0; //Raw, uninterpolated input from pot
+  bool lastPressed = false; //if last pressed
+  
+  void updateInputs(uint8_t pin) {
+    // read analog input 0 drop the range from 0-1024 to 0-127 with a right shift 3 places,
+    // then look up the phaseIncrement required to generate the note in updatePressed()
+    
+    //Get shifted midi note input (128 notes)
+    rawInput = analogRead(pin)>>3;
 
-//SECTION - ENVELOPE (EXT)
+    //Interpolate to rawInput amount
+    ulInput += (rawInput - ulInput) * INTERPOL_AMOUNT;
+  }
 
-struct Envelope Env1;
+  public:
+  void updatePressed() {
+    // If pressed, update lastPressed and use the interplated value. If not, use the lastPressed value.
+    // This works because our ADSR envelope (the variable fade) works independently of the pitch.
+    
+    ulPhaseIncrement = nMidiPhaseIncrement[ulInput]; //Convert interpolated midi note to a frequency
+    lastPressed = rawInput>0; //Update potentiometer pressed
+  }
+
+  uint16_t outputValue(uint16_t *table) {
+    return Oscillator::paValue(table) * lastPressed;
+  }
+};
+
+
+// Pot models for each pot - basically a rough model for variables assigned to each pot
+Potentiometer Pot1;
+Potentiometer Pot2;
+Potentiometer Pot3;
+
+bool pressed; // if any of the pots are being pressed
+
+//Envelope
+Envelope Env1;
 
 //ADSR
-volatile float fade = 1; //fade envelope
+float fade = 1; //fade envelope
 #define attack_add 0.2 //how much higher the attack peak is than the normal peak (like this for performance)
 boolean attack = true;
-
 
 
 void setup()
@@ -89,8 +133,7 @@ void setup()
   createSineTable();
 
   //envelope wavetable
-  envelopeTableFill(&Env1, nSineTable);
-  setEnvelopeRate(&Env1, ((pow(2.0,((-2)-69.0)/12.0)) * 440.0) * TICKS_PER_CYCLE);
+  Env1.constructor(pow(2.0,(-2-69)/12.0) * 440.0 * TICKS_PER_CYCLE, nSineTable);
 
   //Timer and DAC
   
@@ -117,52 +160,35 @@ void setup()
 }
 
 void loop()
-{
-  // read analog input 0 drop the range from 0-1024 to 0-127 with a right shift 3 places,
-  // then look up the phaseIncrement required to generate the note in our nMidiPhaseIncrement table
-
-  //Get shifted midi note input
-  uint32_t tempRead = analogRead(0);
-  Pot1.rawInput = analogRead(0)>>3;
-  tempRead = analogRead(1);
-  Pot2.rawInput = analogRead(1)>>3;
-  tempRead = analogRead(2);
-  Pot3.rawInput = analogRead(2)>>3;
-
-  //Interpolate to rawInput amount
-  Pot1.ulInput += (Pot1.rawInput - Pot1.ulInput) * INTERPOL_AMOUNT; //interpol
-  Pot2.ulInput += (Pot2.rawInput - Pot2.ulInput) * INTERPOL_AMOUNT;
-  Pot3.ulInput += (Pot3.rawInput - Pot3.ulInput) * INTERPOL_AMOUNT;
+{ 
+  Pot1.updateInputs(0);
+  Pot2.updateInputs(1);
+  Pot3.updateInputs(2);
 
   // identify if the potentiometers are pressed or not (saves on the checks in the interrupt timer)
   pressed = Pot1.rawInput>0 || Pot2.rawInput>0 || Pot3.rawInput>0;
 
-  // If pressed, update lastPressed and use the interplated value. If not, use the lastPressed value.
-  // This works because our ADSR envelope (the variable fade) works independently of the pitch.
   if (pressed) {
     //convert to a frequency and push interpolated value to increment
-    Pot1.ulPhaseIncrement = nMidiPhaseIncrement[Pot1.ulInput]; 
-    Pot2.ulPhaseIncrement = nMidiPhaseIncrement[Pot2.ulInput];
-    Pot3.ulPhaseIncrement = nMidiPhaseIncrement[Pot3.ulInput];
-
-    Pot1.lastPressed = Pot1.rawInput>0;
-    Pot2.lastPressed = Pot2.rawInput>0;
-    Pot3.lastPressed = Pot3.rawInput>0;
+    Pot1.updatePressed();
+    Pot2.updatePressed();
+    Pot3.updatePressed();
   }
 
   // ADSR envelope update
-  if (pressed) { 
+  if (pressed) {
    float fadePoint = 0.8 + (attack * attack_add); //Calculation point to interpolate to
    //Transition to Decay and Sustain
-   if (fade >= (0.8+attack_add) - 0.02) {
+   if (fade >= (0.8 + attack_add) - 0.02) {
     attack = false;
    }
    fade += (fadePoint - fade) * 0.2; //Interpolation
   } else { //fade out
-   fade *= 0.95;
+   fade *= 0.98;
    attack = (fade <= 0.6);
   }
 
+  //Debug
   Serial.print(Pot1.rawInput);
   Serial.print(" ");
   Serial.println(Pot2.rawInput);
@@ -177,26 +203,18 @@ void TC4_Handler()
 
   
   //Envelope 1 update
-  envelopeUpdate(&Env1);
-  float volEnv = 1;//Env1.nTable[Env1.ulPhaseAccumulator>>20];
+  Env1.updatePhaseAccumulator();
+  float volEnv = 1.0; //Env1.nTable[Env1.getPAIndex()];
 
-  // 32 bit accumulators update
-  Pot1.ulPhaseAccumulator += Pot1.ulPhaseIncrement; 
-  Pot2.ulPhaseAccumulator += Pot2.ulPhaseIncrement;
-  Pot3.ulPhaseAccumulator += Pot3.ulPhaseIncrement;
-
-   // if the phase accumulator over flows - we have been through one cycle at the current pitch, now we need to reset the grains ready for our next cycle
-  if(Pot1.ulPhaseAccumulator > SAMPLES_PER_CYCLE_FIXEDPOINT) {
-   Pot1.ulPhaseAccumulator -= SAMPLES_PER_CYCLE_FIXEDPOINT; } // carry the remainder of the phase accumulator 
-  if(Pot2.ulPhaseAccumulator > SAMPLES_PER_CYCLE_FIXEDPOINT) { //second grain overflow
-   Pot2.ulPhaseAccumulator -= SAMPLES_PER_CYCLE_FIXEDPOINT; }
-  if(Pot3.ulPhaseAccumulator > SAMPLES_PER_CYCLE_FIXEDPOINT) { //third grain overflow
-    Pot3.ulPhaseAccumulator -= SAMPLES_PER_CYCLE_FIXEDPOINT; }
+  //Update the oscilator's phase accumulators
+  Pot1.updatePhaseAccumulator();
+  Pot2.updatePhaseAccumulator();
+  Pot3.updatePhaseAccumulator();
  
   // get current samples for grains, add the grains together, apply envelopes and apply ADSR
   ulOutput =
-    ((nSineTable[Pot1.ulPhaseAccumulator>>20]*Pot1.lastPressed + nSquareTable[Pot2.ulPhaseAccumulator>>20]*Pot2.lastPressed) / 2) 
-    * volEnv * fade;
+    ((Pot1.outputValue(nSineTable) + Pot2.outputValue(nSquareTable)) / 2)
+      * volEnv * fade;
 
   // we cheated and use analogWrite to enable the dac, but here we want to be fast so write directly
    dacc_write_conversion_data(DACC_INTERFACE, ulOutput);
