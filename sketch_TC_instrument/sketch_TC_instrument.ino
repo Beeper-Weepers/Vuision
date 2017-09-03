@@ -112,10 +112,11 @@ bool pressed; // if any of the pots are being pressed
 Envelope Env1;
 
 //ADSR
-float fade = 1; //fade envelope
+double fade = 1; //fade envelope
 #define attack_add 0.2 //how much higher the attack peak is than the normal peak (like this for performance)
 boolean attack = true;
 
+unsigned int delta = millis();
 
 void setup()
 {
@@ -172,23 +173,23 @@ void loop()
   }
 
   // ADSR envelope update
-  //delta = millis() - delta; //update delta time
   if (pressed) {
    float fadePoint = 0.8 + (attack * attack_add); //Calculation point to interpolate to
    //Transition to Decay and Sustain
-   if (fade >= (0.8 + attack_add) - 0.02) {
+   if (fade >= (0.8 + attack_add) - 0.01) {
     attack = false;
    }
    fade += (fadePoint - fade) * 0.2; //Interpolation
   } else { //fade out
-   fade *= 0.98;
+   fade *= 1.0 - (12.0 * ((millis() - delta) / 1000.0));
    attack = (fade <= 0.6);
   }
+  delta = millis(); //update delta time
 
   //Debug
-  Serial.print(Pot1.lastPressed);
+  Serial.print(fade);
   Serial.print(" ");
-  Serial.println(Pot2.lastPressed);
+  Serial.println(Pot1.lastPressed);
 }
 
 
