@@ -56,10 +56,6 @@ class Oscillator {
     }  
   }
 
-  uint32_t getPAIndex() { //get for phase accumulator
-    return Oscillator::ulPhaseAccumulator >> 20;
-  }
-
   uint16_t paValue(uint16_t *table) {
     return table[Oscillator::ulPhaseAccumulator >> 20];
   }
@@ -100,7 +96,7 @@ class Potentiometer : public Oscillator {
   }
 
   uint16_t outputValue(uint16_t *table) {
-    return Oscillator::paValue(table) * lastPressed;
+    return paValue(table) * lastPressed;
   }
 };
 
@@ -176,6 +172,7 @@ void loop()
   }
 
   // ADSR envelope update
+  //delta = millis() - delta; //update delta time
   if (pressed) {
    float fadePoint = 0.8 + (attack * attack_add); //Calculation point to interpolate to
    //Transition to Decay and Sustain
@@ -189,9 +186,9 @@ void loop()
   }
 
   //Debug
-  Serial.print(Pot1.rawInput);
+  Serial.print(Pot1.lastPressed);
   Serial.print(" ");
-  Serial.println(Pot2.rawInput);
+  Serial.println(Pot2.lastPressed);
 }
 
 
@@ -213,7 +210,7 @@ void TC4_Handler()
  
   // get current samples for grains, add the grains together, apply envelopes and apply ADSR
   ulOutput =
-    ((Pot1.outputValue(nSineTable) + Pot2.outputValue(nSquareTable)) / 2)
+    ((Pot1.outputValue(nSineTable) + Pot2.outputValue(nSineTable)) / 2)
       * volEnv * fade;
 
   // we cheated and use analogWrite to enable the dac, but here we want to be fast so write directly
